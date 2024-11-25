@@ -114,17 +114,27 @@ public class UserServiceImpl implements UserService {
         Optional<User> userOptional = userRepository.findById(id);
 
         return userOptional.map(dbUser -> {
-            dbUser.setRoles(user.getRoles());
+            user.getRoles().forEach(role -> dbUser.getRoles().add(role));
             return Optional.of(userRepository.save(dbUser));
         }).orElseGet(Optional::empty);
     }
 
     @Override
-    public Optional<User> blockUser(User user, Long id) {
+    public Optional<User> blockUser(Long id) {
         Optional<User> userOptional = userRepository.findById(id);
 
         return userOptional.map(dbUser -> {
             dbUser.setEnabled(false);
+            return Optional.of(userRepository.save(dbUser));
+        }).orElseGet(Optional::empty);
+    }
+
+    @Override
+    public Optional<User> unlockUser(Long id) {
+        Optional<User> userOptional = userRepository.findById(id);
+
+        return userOptional.map(dbUser -> {
+            dbUser.setEnabled(true);
             return Optional.of(userRepository.save(dbUser));
         }).orElseGet(Optional::empty);
     }

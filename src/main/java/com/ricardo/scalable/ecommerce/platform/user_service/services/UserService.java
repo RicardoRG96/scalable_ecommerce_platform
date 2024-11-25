@@ -25,6 +25,8 @@ public interface UserService {
 
     Optional<User> addUserRoles(User user, Long id);
 
-    Optional<User> blockUser(User user, Long id);
+    Optional<User> blockUser(Long id);
+
+    Optional<User> unlockUser(Long id);
 
 }
