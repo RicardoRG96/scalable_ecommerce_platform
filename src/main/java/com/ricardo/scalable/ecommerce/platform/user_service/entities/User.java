@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -26,11 +27,11 @@ public class User {
     @Column(unique = true)
     private String email;
 
+//    @Size(min = 6, max = 25)
     @NotBlank
     @JsonIgnore
     private String password;
 
-    @JsonIgnore
     private Boolean enabled;
 
     @Transient

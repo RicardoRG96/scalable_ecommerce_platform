@@ -1,23 +1,21 @@
 package com.ricardo.scalable.ecommerce.platform.user_service.controllers;
 
 import com.ricardo.scalable.ecommerce.platform.user_service.entities.User;
+import com.ricardo.scalable.ecommerce.platform.user_service.exceptions.PasswordDoNotMatchException;
+import com.ricardo.scalable.ecommerce.platform.user_service.repositories.dto.UserUpdateInfoDto;
+import com.ricardo.scalable.ecommerce.platform.user_service.repositories.dto.UserUpdatePasswordDto;
 import com.ricardo.scalable.ecommerce.platform.user_service.services.UserService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.FieldError;
-import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @RestController
 public class UserController {
@@ -77,26 +75,56 @@ public class UserController {
         return ResponseEntity.status(HttpStatus.CREATED).body(userService.save(user));
     }
 
+    private ResponseEntity<?> validation(BindingResult result) {
+        Map<String, String> errors = new HashMap<>();
+
+        result.getFieldErrors()
+                .forEach(err -> {
+                    errors.put(err.getField(), "El campo " + err.getField() + " " + err.getDefaultMessage());
+                });
+        return ResponseEntity.badRequest().body(errors);
+    }
+
     // revisar validacion del campo de password, ver como lo puedo ignorar en este endpoint
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateUser(@Valid @RequestBody User user, @PathVariable Long id, BindingResult result) {
+    public ResponseEntity<?> updateUser(
+            @Valid @RequestBody UserUpdateInfoDto userUpdated,
+            @PathVariable Long id,
+            BindingResult result
+    ) {
         if (result.hasErrors()) {
-            if (result.getFieldError("password").getField().equals("password")) {
-                FieldError passwordField = result.getFieldError("password");
-                BindingResult resultCopy = result;
-                resultCopy.getFieldErrors().remove(passwordField);
-                return this.validation(resultCopy);
-            }
             return this.validation(result);
         }
 
-        Optional<User> userOptional = userService.update(user, id);
+        Optional<User> userOptional = userService.update(userUpdated, id);
 
         if (userOptional.isPresent()) {
             return ResponseEntity.ok(userOptional.orElseThrow());
         }
 
         return ResponseEntity.notFound().build();
+    }
+
+    @PutMapping("/change-password/{id}")
+    public ResponseEntity<?> changePassword(
+            @Valid @RequestBody UserUpdatePasswordDto userUpdated,
+            @PathVariable Long id,
+            BindingResult result
+    ) {
+        if (result.hasErrors()) {
+            this.validation(result);
+        }
+        try {
+            Optional<User> userOptional = userService.updatePassword(userUpdated, id);
+            if (userOptional.isPresent()) {
+                return ResponseEntity.noContent().build();
+            }
+            return ResponseEntity.notFound().build();
+        } catch (PasswordDoNotMatchException ex) {
+            Map<String, String> responseNotMatchedPassword = new HashMap<>();
+            responseNotMatchedPassword.put("message", ex.toString());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(responseNotMatchedPassword);
+        }
     }
 
     @PutMapping("/roles/{id}")
@@ -130,16 +158,6 @@ public class UserController {
         }
 
         return ResponseEntity.notFound().build();
-    }
-
-    private ResponseEntity<?> validation(BindingResult result) {
-        Map<String, String> errors = new HashMap<>();
-
-        result.getFieldErrors()
-                .forEach(err -> {
-                    errors.put(err.getField(), "El campo " + err.getField() + " " + err.getDefaultMessage());
-                });
-        return ResponseEntity.badRequest().body(errors);
     }
 
     @DeleteMapping("/{id}")
